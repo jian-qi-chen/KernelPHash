@@ -1,0 +1,13 @@
+
+ 
+		//First Iteration :  With No Multiplies
+		for(i=0;i<16;i=i+16){
+			tmp_real = sample[i][0] + sample[i+8][0];
+			tmp_imag = sample[i][1] + sample[i+8][1];
+ 
+			sample[i+8][0] = sample[i][0] - tmp_real;
+			sample[i+8][1] = sample[i][1] - tmp_imag;
+
+			sample[i][0] = tmp_real;
+			sample[i][1] = tmp_imag;
+		}
