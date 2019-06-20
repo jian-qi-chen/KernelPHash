@@ -568,7 +568,7 @@ def PHashGen(node_list, textgen=TEXTGEN):
     with open('pHash/hash','r') as f:
         hash_v = f.read().splitlines()
 
-    return hash_v
+    return hash_v[1:]
 
 # Compute the average hamming distance, the return value is a number form 0 to 32. This is a wrapper
 def HammingDist(hash1,hash2,printing=False):
