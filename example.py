@@ -56,5 +56,5 @@ hash1 = kph.PHashGen(ast1)
 print('Hash list of test_cases/test1.txt:',hash1,'\n')
 
 # compare these two hash list ( calculate avg. hamming distance)
-hm_dist = kph.HammingDist(hash0,hash1)
+hm_dist = kph.HammingDist64(hash0,hash1)
 print('Average Hamming Distance:',hm_dist)

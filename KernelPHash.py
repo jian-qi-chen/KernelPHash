@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 """ Author: Jianqi Chen, Date: May 2019 """
 from anytree import Node
-import os, sys, re
+import os, sys, re, math
 
-TEXTGEN = 'BFS' # can be 'preorder', 'postorder' or 'BFS'
+TEXTGEN = 'preorder' # can be 'preorder', 'postorder' or 'BFS'
+PHASH = 'selfmade' #perceptual hash algorithm, 'selfmade' is using TextHash64 function, 'pHashlib' is using pHash C++ library
 prevent_overlapped_name = True
 node_name_dict = {}
 os.system('cd pHash && rm text_ast hash hash.info')
@@ -51,7 +52,7 @@ def main(argv):
     if len(ast_list)>1:
         hash_0 = PHashGen(ast_list[0])
         hash_1 = PHashGen(ast_list[1])
-        hm_dist = HammingDist(hash_0,hash_1)
+        hm_dist = HammingDist64(hash_0,hash_1)
 
         print('Hash list of',argv[0],':',hash_0)
         print('Hash list of',argv[1],':',hash_1)
@@ -537,8 +538,9 @@ def ArrList(node_list):
 
 # Generate Perceptual hash from the AST, node_list is a list of nodes in AST
 # textgen is the way to generate text form AST, can be 'preorder', 'postorder','BFS'
+# phash is the perceptual hash algorithm, 'selfmade' is using TextHash64 function, 'pHashlib' is using pHash C++ library
 # returns a list of 32-bit hex hash(string)
-def PHashGen(node_list, textgen=TEXTGEN):
+def PHashGen(node_list, textgen=TEXTGEN, phash=PHASH):
     if textgen == 'preorder':
         text_ast = TextGenDFS(node_list,order='pre')
     elif textgen == 'postorder':
@@ -552,23 +554,33 @@ def PHashGen(node_list, textgen=TEXTGEN):
     text_ast = UnifyNaming(text_ast) # change variable/array names
 
     i = 1
-    while len(text_ast) < 500: # avoid the text is too short
+    if phash=='selfmade':
+        limit_low = 80
+    elif phash=='pHashlib':
+        limit_low = 500
+        
+    while len(text_ast) < limit_low: # avoid the text is too short
         text_ast += text_ast
         i += 1
+        
     text_ast += ('101'*i + ' 5656 '*(i>4 and i<8) + '7878'*(i>8 and i<16) + '9090'*(i>16))
-
-    with open('pHash/text_ast','w') as f:
-        f.write(text_ast)
     
-    ret_v = os.system('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/pHash/src && cd pHash && ./text_hash.exe text_ast')
-    if ret_v != 0:
-        print('Error occur in text_hash.exe')
-        return -1
+    if phash=='selfmade':
+        hash_v = TextHash64(text_ast)
 
-    with open('pHash/hash','r') as f:
-        hash_v = f.read().splitlines()
+    elif phash=='pHashlib':
+        with open('pHash/text_ast','w') as f:
+            f.write(text_ast)
+            
+        ret_v = os.system('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/pHash/src && cd pHash && ./text_hash.exe text_ast')
+        if ret_v != 0:
+            print('Error occur in text_hash.exe')
+            return -1
 
-    return hash_v[1:]
+        with open('pHash/hash','r') as f:
+            hash_v = f.read().splitlines()
+
+    return hash_v
 
 # Compute the average hamming distance, the return value is a number form 0 to 32. This is a wrapper
 def HammingDist(hash1,hash2,printing=False):
@@ -620,6 +632,113 @@ def HammingDist_real(hash1,hash2,printing=False):
 
     return count 
 
+# generate a perceptual hash list of a given string textin
+def TextHash64(textin):
+    hash_list = []
+    for i in range(8):
+        new_textin = 'dummy '*i+textin
+        cur_hash_list = TextHash64_real(new_textin)
+        hash_list += cur_hash_list
+        
+    # reduce hash list size
+    target_hd = 0
+    while(len(hash_list)>32):
+        hashl_len = len(hash_list)
+        delete_list = [False]*hashl_len
+        
+        for i in range(hashl_len):
+            if delete_list[i]:
+                continue
+            if delete_list.count(False)<32:
+                continue
+            for j in range(i+1,hashl_len):
+                if HammingDist64_real(hash_list[i],hash_list[j]) == target_hd:
+                    delete_list[j] = True
+        
+        new_hashl = filter(lambda p: p[1] == False, zip(hash_list,delete_list))
+        new_hashl = list(zip(*new_hashl))[0]
+        
+        hash_list = list(new_hashl)
+        target_hd += 1
+        
+    return hash_list
+
+def TextHash64_real(textin):
+    # every paragraph generate a hash value of 64 bits
+    win_len = 8 # window length, in number of characters
+    para_len = 10 # paragraph length, in number of windows
+    
+    # align with space
+    text_t = textin.split(' ')
+    text = ''
+    for txt_item in text_t:
+        sec_len = math.ceil( len(txt_item)/win_len )*win_len
+        new_item = txt_item+' '*(sec_len-len(txt_item))
+        text += new_item
+    
+    txt_len = len(text)
+    
+    round = int(txt_len/(win_len*para_len)) + 1
+    remain_char = txt_len
+    hash_list = []
+    for i in range(round):
+        char_list = [0]*win_len # the list of character value sum, to generate hash
+        j = 0
+        while remain_char > 0 and j < para_len:
+            k = 0
+            while remain_char > 0 and k < win_len:
+                char_list[k] += ord( text[i*(win_len*para_len)+j*win_len+k] )
+                remain_char -= 1
+                k += 1
+            j += 1
+                
+        char_list = [ p%256 for p in char_list ]    
+        hash_l = [ '%02x' % p for p in  char_list ]
+        hash = ''.join(hash_l)
+        hash_list.append(hash)
+        
+    return hash_list
+ 
+# Compute the hamming distance between two hash list
+def HammingDist64(hash_list1, hash_list2):
+    hm_dist1 = HammingDist64_oneside(hash_list1, hash_list2)
+    hm_dist2 = HammingDist64_oneside(hash_list2, hash_list1)
+    
+    return (hm_dist1+hm_dist2)/2
+
+def HammingDist64_oneside(hash_list1, hash_list2):
+    min_hamming_dist_list = []
+    
+    for hash1 in hash_list1:
+        hm_dist_min = 64
+        for hash2 in hash_list2:
+            cur_hm_dist = HammingDist64_real(hash1, hash2)
+            if cur_hm_dist==0:
+                hm_dist_min = 0
+                break
+            elif cur_hm_dist < hm_dist_min:
+                hm_dist_min = cur_hm_dist
+        
+        min_hamming_dist_list.append(hm_dist_min)
+    
+    # use average minimum hamming distance as the Hamming Distance of two hash list
+    avg_min_hd = sum(min_hamming_dist_list)/len(min_hamming_dist_list) 
+    return avg_min_hd
+    
+    
+def HammingDist64_real(hash1,hash2):
+    hash1_b = '{0:b}'.format(int(hash1,16)) #hex to binary
+    hash2_b = '{0:b}'.format(int(hash2,16))
+
+    hash1_b = '0'*(64-len(hash1_b))+hash1_b # add zeros
+    hash2_b = '0'*(64-len(hash2_b))+hash2_b
+
+    count = 0
+    for i in range(64):
+        if (hash1_b[i] != hash2_b[i]):
+            count += 1
+
+    return count 
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -1,6 +1,6 @@
 This program generates abstract syntax tree(AST) of a C/C++ kernel (piece of code that does data intensive computation), and generate a perceptual hash list based on AST for fingerprinting. Now only these keywords are supported: for, if else, while, return. No function, variable declaration, struct, pointer operation, preprocessor, or any advanced feature are allowed. To understand how to use it, please read the example.py. Here's some dependency info below.
 
-Preceptual hash library:
+Preceptual hash library(NOT USED IN THE LATEST VERSION):
 The C++ pHash(0.9.6) library is quite outdated (not compatible with new linux libraries) and may not be easy to install correctly. So I just put the shared library and header files in pHash/src, and the text_hash.exe can be compiled and run without installing the pHash library. However since the shared library is not in /usr/local/lib/, the environment variable $LD_LIBRARY_PATH need to configured before running the program. (e.g. export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/pHash/src), this is included in the python program but you need to configure it if want to run the text_hash.exe alone).
 For more information, please visit https://www.phash.org/
 
