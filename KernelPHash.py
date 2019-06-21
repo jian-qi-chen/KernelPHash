@@ -3,7 +3,7 @@
 from anytree import Node
 import os, sys, re
 
-TEXTGEN = 'preorder' # can be 'preorder', 'postorder' or 'BFS'
+TEXTGEN = 'BFS' # can be 'preorder', 'postorder' or 'BFS'
 prevent_overlapped_name = True
 node_name_dict = {}
 os.system('cd pHash && rm text_ast hash hash.info')
@@ -574,13 +574,15 @@ def PHashGen(node_list, textgen=TEXTGEN):
 def HammingDist(hash1,hash2,printing=False):
     hm_dist1 = HammingDist_avg(hash1,hash2,printing=printing)
     hm_dist2 = HammingDist_avg(hash2,hash1,printing=printing)
-    print('hm_dist1 =',hm_dist1)
-    print('hm_dist2 =',hm_dist2)
+    if printing:
+        print('hm_dist1 =',hm_dist1)
+        print('hm_dist2 =',hm_dist2)
+        
     return (hm_dist1+hm_dist2)/2
 
 # Compute the average hamming distance, the return value is a number form 0 to 32
 def HammingDist_avg(hash1,hash2,printing=False):
-    if printing==1:
+    if printing:
         print('hash1 list:',hash1)
         print('hash2 list:',hash2)
 
@@ -593,7 +595,7 @@ def HammingDist_avg(hash1,hash2,printing=False):
                 hm_dist_list.append(cur_hm)
 
     hm_dist = sum(hm_dist_list)/(len(hash1)*len(hash2)) # calculate the average
-    if printing==True:
+    if printing:
         print('Overall hamming distance =',hm_dist)
 
     return hm_dist
