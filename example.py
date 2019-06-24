@@ -43,6 +43,10 @@ print('Varibles:\n',var_dict,'\n')
 arr_dict = kph.ArrList(ast0)
 print('arrays:\n',arr_dict,'\n')
 
+# get input/output array names of the kernel
+arr_io = kph.FindIO(ast0)[0]
+print('array in/outputs:\n',arr_io,'\n')
+
 # generate hash list from the text of DFS pre-order (by default)
 hash0 = kph.PHashGen(ast0)
 print('Hash list of test_cases/test.txt:',hash0)

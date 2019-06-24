@@ -7,7 +7,7 @@ TEXTGEN = 'preorder' # can be 'preorder', 'postorder' or 'BFS'
 PHASH = 'selfmade' #perceptual hash algorithm, 'selfmade' is using TextHash64 function, 'pHashlib' is using pHash C++ library
 prevent_overlapped_name = True
 node_name_dict = {}
-os.system('cd pHash && rm text_ast hash hash.info')
+os.system('cd pHash && rm -f text_ast hash hash.info')
 os.system('chmod 744 pHash/text_hash.exe')
 
 def usage():
@@ -445,6 +445,40 @@ def NodeName(name, prevent = prevent_overlapped_name):
         return name+'{'+str(node_name_dict[name])+'}'
     else:
         return name
+
+# The piece of code (kernel) can be viewed as a single module, which has inputs and outputs. To determine those IOs this function use DFS to find them. To make things easier, every var/arr appeared on the left of '=' are output, and every var/arr appeared on the right of '=' are inputs.
+# return value is [dict_array, dict_variable], where dict_array = {'inputs': [arr1,arr2...],'outputs': [arr3,arr4...]}. Similar for dict_variable.
+def FindIO(node_list):
+    def DFTrav(node,flg):
+        if re.match(r'Var\(.+\)\{[\d]+\}',node.name):
+            var_name = re.findall(r'\(.+\)',node.name)[0][1:-1]
+            if flg=='left':
+                var_outputs.add(var_name)
+            elif flg=='right':
+                var_inputs.add(var_name)
+                
+        elif re.match(r'Arr\(.+\)\{[\d]+\}',node.name):
+            arr_name = re.findall(r'\(.+\)',node.name)[0][1:-1]
+            if flg=='left':
+                arr_outputs.add(arr_name)
+            elif flg=='right':
+                arr_inputs.add(arr_name)
+
+        if re.match(r'=\{[\d]+\}',node.name):
+            DFTrav(node.children[0],'left')
+            DFTrav(node.children[1],'right')
+        else:
+            for child_node in node.children:
+                DFTrav(child_node,flg)
+                
+        return
+
+    arr_inputs = set()
+    arr_outputs = set()
+    var_inputs = set()
+    var_outputs = set()
+    DFTrav(node_list[0],None)
+    return [{'inputs':list(arr_inputs), 'outputs': list(arr_outputs)},{'inputs':list(var_inputs), 'outputs': list(var_outputs)}]
 
 # To generate a string from the AST, this function use depth first traversal, order can be 'pre'(preorder) or 'post'(postorder) 
 def TextGenDFS(node_list,order='pre'):
